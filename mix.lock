@@ -2,6 +2,7 @@
   "cowlib": {:hex, :cowlib, "1.0.1"},
   "hackney": {:hex, :hackney, "1.1.0"},
   "idna": {:hex, :idna, "1.0.2"},
+  "logger": {:git, "git://github.com/josevalim/logger.git", "a4b9b40dbe963e68fd396c686002ccb3947e0435", []},
   "plug": {:hex, :plug, "0.11.3"},
   "ranch": {:hex, :ranch, "1.0.0"},
   "ssl_verify_hostname": {:hex, :ssl_verify_hostname, "1.0.4"}}
