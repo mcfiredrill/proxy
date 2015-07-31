@@ -5,7 +5,8 @@ defmodule Proxy do
   import Plug.Conn
 
   # @target "http://google.com"
-  @target "http://datafruits.streampusher.com:49236"
+  @target "http://datafruits.streampusher.com:49237"
+  #@target "http://datafruits.streampusher.com:49236"
 
   plug Plug.Logger
   plug :dispatch
@@ -20,8 +21,9 @@ defmodule Proxy do
   def dispatch(conn, _opts) do
     # Start a request to the client saying we will stream the body.
     # We are simply passing all req_headers forward.
-    {:ok, client} = :hackney.request(:get, uri(conn), conn.req_headers, :stream, [])
+    {:ok, client} = :hackney.request(conn.method, uri(conn), conn.req_headers, :stream, [])
 
+    # read_proxy(write_proxy(conn, client), client)
     conn
     |> write_proxy(client)
     |> read_proxy(client)
@@ -32,9 +34,11 @@ defmodule Proxy do
   defp write_proxy(conn, client) do
     # Check Plug.Conn.read_body/2 docs for maximum body value,
     # the size of each chunk, and supported timeout values.
-    case read_body(conn, [{:length, 100}]) do
+
+    # This isn't working with icecast source clients
+    case read_body(conn, [{:length, 1000}]) do
       {:ok, body, conn} ->
-        Logger.info "reading body"
+        Logger.info "reading body: #{body}"
         :hackney.send_body(client, body)
         Logger.info "sent body from ok"
         conn
@@ -43,6 +47,8 @@ defmodule Proxy do
         :hackney.send_body(client, body)
         Logger.info "sent body from more"
         write_proxy(conn, client)
+      {:error, reason} ->
+        Logger.info "error reading body: #{reason}"
     end
   end
 
@@ -84,12 +90,13 @@ defmodule Proxy do
 
   def stream_hackney_response(conn, client) do
     Stream.resource(
-        fn -> client end,
-        &continue_response/1,
-        fn client ->
-          Logger.info "closing client"
-          :hackney.close(client)
-        end
+      fn -> client end,
+      &continue_response/1,
+      fn client ->
+        #write_proxy(conn, client)
+        Logger.info "closing client"
+        :hackney.close(client)
+      end
     )
   end
 
