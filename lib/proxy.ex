@@ -75,16 +75,20 @@ defmodule Proxy do
     Stream.resource(
         fn -> client end,
         &continue_response/1,
-        fn ref -> :hackney.close(client) end
+        fn ref ->
+          Logger.info "closing client"
+          :hackney.close(client)
+        end
     )
   end
 
   def continue_response(client) do
+    Logger.info "in continue_response"
     case :hackney.stream_body(client) do
         {:ok, data} -> {[data], client}
-        {:done, client} ->
-          IO.puts "No more data"
-          nil
+        :done ->
+          Logger.info "No more data"
+          client
         {:error, reason} ->
           raise reason
     end
