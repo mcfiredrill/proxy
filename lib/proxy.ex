@@ -67,15 +67,26 @@ defmodule Proxy do
 
   def stream_loop(conn, client) do
     stream_hackney_response(conn, client)
-    |> Stream.each(&chunk(conn, &1))
+    |> Stream.take_while(&chunk_to_client(conn, &1))
     |> Stream.run
+  end
+
+  def chunk_to_client(conn, body) do
+    case chunk(conn, body) do
+      {:ok, conn} ->
+        Logger.info "chunked to client"
+        conn
+      {:error, reason} ->
+        Logger.info "error chunking to client. client disconnected? #{reason}"
+        nil
+    end
   end
 
   def stream_hackney_response(conn, client) do
     Stream.resource(
         fn -> client end,
         &continue_response/1,
-        fn ref ->
+        fn client ->
           Logger.info "closing client"
           :hackney.close(client)
         end
@@ -85,7 +96,8 @@ defmodule Proxy do
   def continue_response(client) do
     Logger.info "in continue_response"
     case :hackney.stream_body(client) do
-        {:ok, data} -> {[data], client}
+        {:ok, data} ->
+          {[data], client}
         :done ->
           Logger.info "No more data"
           client
