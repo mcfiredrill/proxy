@@ -51,18 +51,43 @@ defmodule Proxy do
     Logger.info "in read_proxy"
     {:ok, status, headers, client} = :hackney.start_response(client)
     Logger.info "started response"
-    {:ok, body} = :hackney.stream_body(client)
-    Logger.info "body"
 
     # Delete the transfer encoding header. Ideally, we would read
     # if it is chunked or not and act accordingly to support streaming.
     #
     # We may also need to delete other headers in a proxy.
     # headers = List.keydelete(headers, "Transfer-Encoding", 1)
+    Logger.info(status)
+    #Logger.info(headers)
 
     conn = send_chunked(conn, status)
-    {:ok, conn} = chunk(conn, body)
+    stream_loop(conn,client)
     conn
+  end
+
+  def stream_loop(conn, client) do
+    stream_hackney_response(conn, client)
+    |> Stream.each(&chunk(conn, &1))
+    |> Stream.run
+  end
+
+  def stream_hackney_response(conn, client) do
+    Stream.resource(
+        fn -> client end,
+        &continue_response/1,
+        fn ref -> :hackney.close(client) end
+    )
+  end
+
+  def continue_response(client) do
+    case :hackney.stream_body(client) do
+        {:ok, data} -> {[data], client}
+        {:done, client} ->
+          IO.puts "No more data"
+          nil
+        {:error, reason} ->
+          raise reason
+    end
   end
 
   defp uri(conn) do
@@ -72,4 +97,5 @@ defmodule Proxy do
       qs -> base <> "?" <> qs
     end
   end
+
 end
