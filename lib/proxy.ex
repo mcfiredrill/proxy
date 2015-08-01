@@ -5,8 +5,9 @@ defmodule Proxy do
   import Plug.Conn
 
   # @target "http://google.com"
-  @target "http://datafruits.streampusher.com:49237"
-  #@target "http://datafruits.streampusher.com:49236"
+  #@target "http://datafruits.streampusher.com:49237"
+  @target "http://datafruits.streampusher.com:49236"
+  #@target "http://localhost:8000"
 
   plug Plug.Logger
   plug :dispatch
@@ -66,6 +67,7 @@ defmodule Proxy do
     Logger.info(status)
     #Logger.info(headers)
 
+    conn = %{conn | resp_headers: headers}
     conn = send_chunked(conn, status)
     stream_loop(conn,client)
     conn
@@ -104,11 +106,13 @@ defmodule Proxy do
     Logger.info "in continue_response"
     case :hackney.stream_body(client) do
         {:ok, data} ->
+          Logger.info "got data in continue response"
           {[data], client}
         :done ->
           Logger.info "No more data"
           client
         {:error, reason} ->
+          Logger.info "error in continue_response reason: #{reason}"
           raise reason
     end
   end
