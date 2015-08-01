@@ -5,8 +5,8 @@ defmodule Proxy do
   import Plug.Conn
 
   # @target "http://google.com"
-  #@target "http://datafruits.streampusher.com:49237"
-  @target "http://datafruits.streampusher.com:49236"
+  @target "http://datafruits.streampusher.com:49237"
+  #@target "http://datafruits.streampusher.com:49236"
   #@target "http://localhost:8000"
 
   plug Plug.Logger
@@ -58,14 +58,7 @@ defmodule Proxy do
     Logger.info "in read_proxy"
     {:ok, status, headers, client} = :hackney.start_response(client)
     Logger.info "started response"
-
-    # Delete the transfer encoding header. Ideally, we would read
-    # if it is chunked or not and act accordingly to support streaming.
-    #
-    # We may also need to delete other headers in a proxy.
-    # headers = List.keydelete(headers, "Transfer-Encoding", 1)
     Logger.info(status)
-    #Logger.info(headers)
 
     conn = %{conn | resp_headers: headers}
     conn = send_chunked(conn, status)
@@ -74,7 +67,7 @@ defmodule Proxy do
   end
 
   def stream_loop(conn, client) do
-    stream_hackney_response(conn, client)
+    stream_hackney_response(client)
     |> Stream.take_while(&chunk_to_client(conn, &1))
     |> Stream.run
   end
@@ -90,12 +83,11 @@ defmodule Proxy do
     end
   end
 
-  def stream_hackney_response(conn, client) do
+  def stream_hackney_response(client) do
     Stream.resource(
       fn -> client end,
       &continue_response/1,
       fn client ->
-        #write_proxy(conn, client)
         Logger.info "closing client"
         :hackney.close(client)
       end
